@@ -1,0 +1,2 @@
+These are copies of the used libraries, the Arduino project Send_Recive.ino and Lazarus IR_SendRecive.lpr work with them and compile them.
+It's good to work with new libraries, but if there are a lot of innovations it may not compile or work properly. In such a situation, use these. 
