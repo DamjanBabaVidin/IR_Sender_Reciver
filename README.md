@@ -5,7 +5,7 @@ It consists of 2 modules:
  - IR_SendRecive PC software for Linux written in Lazarus
  - Send_Recive.ino Arduino module STM32F103C8T6 and a few details for them. 
 uses 2 projects from github:
-- LazZerial v0.3: https://github.com/JurassicPork/TLazSerial 
+- LazSerial v0.3: https://github.com/JurassicPork/TLazSerial 
 - IRMP-Infrared Multi Protocol Decoder + Encoder https://github.com/ukw100/IRMP
 
 This 2 project is needed for commissioning, you will pick up from these addresses yourself
