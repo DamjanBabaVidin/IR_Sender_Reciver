@@ -96,7 +96,7 @@ type
     procedure UpdateButtons;
     procedure ListBoxAddProtokols();
     procedure WindowsRectCheck(var frameRect : TRect);
-
+    procedure SerialSendString(const sData : String;const bMemoAdd: boolean);
   public
     { public declarations }
      procedure UpdateProtokolsList(const sIn: string);
@@ -129,10 +129,12 @@ const
   MEMO_MAX_LINE_COUNT             = 1000;
   TERMINAL_TEXT_SEND              = '-> Send Command: ';
   TERMINAL_TEXT_SCAN_SERIAL_PORTS = 'Scan Serial Ports';
+  TERMINAL_TEXT_ERROR_SEND        = '-> ERROR Send Command Port is CLOSD :';
   COMMAND_SEND_PROTOCOLS_GET      = 'Protocols Get';
   COMMAND_SEND_IDETIFY            = 'identify';
   COMMAND_RECIVE_PROTOCOLS_DATA   = 'Protocols :';
   COMMAND_RECIVE_IDETIFY          = 'IR Send Recive USB-Serial Daemon';
+  COMMAND_APPLICATION_CLOSE       = 'Application Close';
 
 implementation
 {$R *.lfm}
@@ -171,6 +173,11 @@ begin
 end;
 procedure TFMain.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
+      if ( Serial.Active ) then
+        begin
+          Serial.WriteData(COMMAND_APPLICATION_CLOSE );
+          MemoAddNewRow(TERMINAL_TEXT_SEND +COMMAND_APPLICATION_CLOSE);
+         end;
       if Serial.Active then
         Serial.Active := false ;
 
@@ -252,6 +259,12 @@ end;
 
 procedure TFMain.BCloseClick(Sender: TObject);
 begin
+      if ( Serial.Active ) then
+      begin
+           Serial.WriteData(COMMAND_APPLICATION_CLOSE );
+           MemoAddNewRow(TERMINAL_TEXT_SEND +COMMAND_APPLICATION_CLOSE);
+      end;
+
       Serial.Close;
 end;
 // Тук праща EventConect, до нишката ThreadConect
@@ -264,6 +277,15 @@ end;
 procedure TFMain.BClearMemoClick(Sender: TObject);
 begin
       Memo.Clear;
+end;
+procedure TFMain.SerialSendString(const sData : String;const bMemoAdd: boolean);
+begin
+     if ( Serial.Active ) then
+      begin
+           Serial.WriteData(sData);
+           if  bMemoAdd then MemoAddNewRow(TERMINAL_TEXT_SEND +sData)
+      end
+     else MemoAddNewRow( TERMINAL_TEXT_ERROR_SEND  + sData);
 end;
 
 // Получен е някакъв ред од серийния порт, данните са чисти без EOLN знака
@@ -291,17 +313,18 @@ function TFMain.DecodeCommand(const sIn: string): ReciveCoommandType;
  var i: Integer;
   begin
    // 'Protocols :1111111111111111111111011111011101000011111000101110101100'
+
    if ( sIn.StartsWith(COMMAND_RECIVE_PROTOCOLS_DATA) ) then
    begin
-        if ( sIn.Length <> ( IRMP_N_PROTOCOLS+length(COMMAND_RECIVE_PROTOCOLS_DATA) ) ) then
-          exit ( Command_decode_error );
+         if ( sIn.Length <> ( IRMP_N_PROTOCOLS+length(COMMAND_RECIVE_PROTOCOLS_DATA) ) ) then
+           exit ( Command_decode_error );
 
-        for i := length(COMMAND_RECIVE_PROTOCOLS_DATA)+1  to High(sIn) do  //for i := Low(sIn) to High(sIn) do
-        begin
-               if ( sIn[i]<>'0' ) AND ( sIn[i]<>'1' ) then
-                exit ( Command_decode_error );
-        end;
-    exit( Protokols_Get );
+         for i := length(COMMAND_RECIVE_PROTOCOLS_DATA)+1  to High(sIn) do  //for i := Low(sIn) to High(sIn) do
+         begin
+                if ( sIn[i]<>'0' ) AND ( sIn[i]<>'1' ) then
+                 exit ( Command_decode_error );
+         end;
+     exit( Protokols_Get );
    end
    //'IR Send Recive USB-Serial Daemon'
    else if ( sIn = COMMAND_RECIVE_IDETIFY ) then exit( identify );
@@ -317,7 +340,8 @@ begin
       for i := 0 to CheckListBox1.Count-1 do //   for i := length(COMMAND_RECIVE_PROTOCOLS_DATA)+1  to High(sIn) do  //for i := Low(sIn) to High(sIn) do
       begin
          sIndex:= i+ length(COMMAND_RECIVE_PROTOCOLS_DATA)+1;
-         if (sIndex in [ Low(sIn) .. High(sIn)]) then   CheckListBox1.Checked[i]:= sIn[ i+ length(COMMAND_RECIVE_PROTOCOLS_DATA)+1]='1'  // short if else
+         if (sIndex in [ Low(sIn) .. High(sIn)]) then
+                  CheckListBox1.Checked[i]:= sIn[ i+ length(COMMAND_RECIVE_PROTOCOLS_DATA)+1]='1'
          else
               begin
                   ShowMessage('Error UpdateProtokolsList(const sIn: string);  if (sIndex in [ Low(sIn) .. High(sIn)]) then  ');
@@ -429,8 +453,8 @@ begin
                     end;
     HR_Connect :
                   begin
-                        StatusBar1.SimpleText := 'Port ' + Value + ' connected';
-                        UpdateButtons;   // Enable, disable buttons
+                         StatusBar1.SimpleText := 'Port ' + Value + ' connected';
+                         UpdateButtons;   // Enable, disable buttons
                   end;
 //    HR_CanRead :   StatusBar1.SimpleText := 'CanRead : ' + Value ;
 //    HR_CanWrite :  StatusBar1.SimpleText := 'CanWrite : ' + Value ;
@@ -510,10 +534,10 @@ Var sl: TStringList;
      iFind: integer;
      PortName: string;
 begin
-    // create event
-    EventConect:=RTLEventCreate;
+  // create event
+  EventConect:=RTLEventCreate;
 
-    sl := TStringList.Create;
+  sl := TStringList.Create;
   try
 
     while not Application.Terminated do
@@ -601,9 +625,8 @@ begin
 
          end;//while ( sl.Count>0 ) do
 
-     sl.Free;
+        sl.Clear;
     end;//  while
-
 
   finally
      sl.Free;
