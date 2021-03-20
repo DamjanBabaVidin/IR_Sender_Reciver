@@ -539,9 +539,11 @@ void irmp_print_protocol_name(Print *aSerial, uint8_t aProtocolNumber)
     // no need to save space
     aSerial->print(irmp_protocol_names[aProtocolNumber]);
 #  endif
-#endif
+
+#  else
     aSerial->print(F("0x"));
     aSerial->print(aProtocolNumber, HEX);
+#endif
 }
 
 /*

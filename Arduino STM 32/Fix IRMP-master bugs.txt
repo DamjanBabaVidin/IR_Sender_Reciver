@@ -1,0 +1,30 @@
+
+Fix some bugs in irmpArduinoExt.cpp.h
+  
+  Replace this Function:
+
+
+
+void irmp_print_protocol_name(Print *aSerial, uint8_t aProtocolNumber)
+{
+#if IRMP_PROTOCOL_NAMES == 1
+#  if defined(__AVR__)
+    for (uint_fast8_t i = 0; i < sizeof(irmp_used_protocol_index); ++i)
+    {
+        if(pgm_read_byte(&irmp_used_protocol_index[i]) == aProtocolNumber)
+        {
+            const char* tProtocolStringPtr = (char*) pgm_read_word(&irmp_used_protocol_names[i]);
+            aSerial->print((__FlashStringHelper *) (tProtocolStringPtr));
+            return;
+        }
+    }
+#  else
+    // no need to save space
+    aSerial->print(irmp_protocol_names[aProtocolNumber]);
+#  endif
+
+#  else
+    aSerial->print(F("0x"));
+    aSerial->print(aProtocolNumber, HEX);
+#endif
+}
