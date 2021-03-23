@@ -1,0 +1,134 @@
+# Build IR_Sender_Reciver
+
+1. downloads from  https://github.com/JurassicPork/TLazSerial   TLazSerial-master.zip
+2. We unpack it to a folder. Example: /library
+3. Open in Lazarus Project IR_SendRecive.lpr, from mu library: IR_Sender_Reciver
+4. We ignore mistakes
+5. File -> Open -> LazSerialPort.lpk from TLazSerial-master
+6. Fix some bugs in lazsynaser.pas
+  !!! This is a problem with the CP2102 USB to TTL module.If you do not use it, there is no need to make adjustments.
+
+lazsynaser.pas
+
+uses AFTER LazSynaUtil ADD-->  ,LazFileUtils;   
+
+-->AFTER declaration
+{:Returns list of existing computer serial ports. Working properly only in Windows!}
+function GetSerialPortNames  : string;
+
+ADD-->
+function GetSerialPortNamesNEW:string;  
+
+
+-->AFTER definition end of bodu for linux version
+{$IFNDEF MSWINDOWS}   
+// Modif J.P   03/2013 - O1/2017
+function GetSerialPortNames: string;
+var
+  Index: Integer;
+.
+.
+.
+
+end;
+
+
+ADD-->
+function GetSerialPortNamesNEW: string;
+type
+TSerialStruct = packed record
+  typ: Integer;
+  line: Integer;
+  port: Cardinal;
+  irq: Integer;
+  flags: Integer;
+  xmit_fifo_size: Integer;
+  custom_divisor: Integer;
+  baud_base: Integer;
+  close_delay: Word;
+  io_type: Char;
+  reserved_char: Char;
+  hub6: Integer;
+  closing_wait: Word; // time to wait before closing
+  closing_wait2: Word; // no longer used...
+  iomem_base: ^Char;
+  iomem_reg_shift: Word;
+  port_high: Cardinal;
+  iomap_base: LongWord; // cookie passed into ioremap
+end;
+var
+  i: Integer;
+  sr : TSearchRec;
+  sl: TStringList;
+  st: stat;
+  s: String;
+  fd: PtrInt;
+  Ser : TSerialStruct;
+const TIOCGSERIAL = $541E;
+  PORT_UNKNOWN = 0;
+begin
+  Result := '';
+  sl := TStringList.Create;
+  try
+    // 1. Alle möglichen Ports finden
+    if FindFirst('/sys/class/tty/*', LongInt($FFFFFFFF), sr) = 0 then
+    begin
+      repeat
+        if (sr.Name <> '.') and (sr.Name <> '..') Then
+          if (sr.Attr and LongInt($FFFFFFFF)) = Sr.Attr then
+            sl.Add(sr.Name);
+      until FindNext(sr) <> 0;
+    end;
+    FindClose(sr);
+    // 2. heraussuchen ob ./device/driver vorhanden ist
+    for i := sl.Count - 1 Downto 0 Do
+    Begin
+      If Not DirectoryExistsUTF8('/sys/class/tty/' + sl[i] + '/device/driver') Then
+        sl.Delete(i); // Nicht vorhanden >> Port existiert nicht
+    end;
+    // 3. Herausfinden welcher Treiber
+    for i := sl.Count - 1 Downto 0 Do
+    Begin
+      st.st_mode := 0;
+      IF fpLstat('/sys/class/tty/' + sl[i] + '/device', st) = 0 Then
+      Begin
+        if fpS_ISLNK(st.st_mode) Then
+        Begin
+          s := fpReadLink('/sys/class/tty/' + sl[i] + '/device/driver');
+          s := ExtractFileName(s);
+
+          // 4. Bei serial8250 Treiber muss der Port geprüft werden
+          If s = 'serial8250' Then
+          Begin
+            sl.Objects[i] := TObject(PtrInt(1));
+            fd := FpOpen('/dev/' + sl[i], O_RDWR Or O_NONBLOCK Or O_NOCTTY);
+            If fd > 0 Then
+            Begin
+              If FpIOCtl(fd, TIOCGSERIAL, @Ser) = 0 Then
+              Begin
+                If Ser.typ = PORT_UNKNOWN Then // PORT_UNKNOWN
+                  sl.Delete(i);
+              end;
+              FpClose(fd);
+            end else sl.Delete(i); // Port kann nicht geöffnet werden
+          end;
+        End;
+      end;
+    end;
+    // 5. Dev anhängen
+    for i := 0 To sl.Count - 1 Do sl[i] := '/dev/' + sl[i];
+    Result := sl.CommaText; // целия  TStringList го пражи в един стринг, със сепаратор запетая
+    // Оригинала беше със сепаратор празно Result + '  ' +, тъй като ги взема с:   ComComboBox1.Items.CommaText :=  GetSerialPortNames();
+    // Оставам както е по новия пример
+    //for i := 0 To sl.Count - 1 Do Result := Result + '  ' +'/dev/' + sl[i];
+  finally
+     sl.Free;
+  end;
+
+end;                                                       
+
+After this changes :
+Run -> Clean Up and Build
+
+
+
